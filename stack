@@ -1,0 +1,479 @@
+#!/usr/bin/env bash
+
+## To configure
+DOCKER_FILES=##DOCKER_FILES##
+EDITOR=vim
+## End to configure
+
+## Base64 Encoded template files
+DEFAULT_DOCKERCOMPOSE_TEMPLATE_B64="dmVyc2lvbjogIjMuOCIKc2VydmljZXM6CiAgIyNDT05UQUlORVIjIzoKICAgIGNvbnRhaW5lcl9uYW1lOiAjI0NPTlRBSU5FUiMjCiAgICBpbWFnZTogdHJhZWZpay93aG9hbWkKICAgIHJlc3RhcnQ6IHVubGVzcy1zdG9wcGVkCiAgICBwb3J0czoKICAgICAgICAtIDExMDgwOjgwCiAgICB2b2x1bWVzOgogICAgICAtICRDT05GSUdGT0xERVIvIyNDT05UQUlORVIjIy9kYXRhL2NvbmZpZzovY29uZmlnCiAgICBsYWJlbHM6CiAgICAgIC0gInRyYWVmaWsuZW5hYmxlPXRydWUiCiAgICAgIC0gInRyYWVmaWsuaHR0cC5zZXJ2aWNlcy4jI0NPTlRBSU5FUiMjLXNlcnZpY2UubG9hZGJhbGFuY2VyLnNlcnZlci5wb3J0PTgwIgoKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUuZW50cnlwb2ludHM9d2Vic2VjdXJlIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS5ydWxlPUhvc3QoYCMjQ09OVEFJTkVSIyMuJERPTUFJTk5BTUVgKSIKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUubWlkZGxld2FyZXM9bG9jYWwtbmV0d29ya0BmaWxlLCBjaGFpbi1hdXRoLWF1dGhlbGlhQGZpbGUiCiAgICAgIC0gInRyYWVmaWsuaHR0cC5yb3V0ZXJzLiMjQ09OVEFJTkVSIyMtc2VjdXJlLnByaW9yaXR5PTEwIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS50bHM9dHJ1ZSIKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUudGxzLmNlcnRyZXNvbHZlcj1teXJlc29sdmVyIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS5zZXJ2aWNlPSMjQ09OVEFJTkVSIyMtc2VydmljZSIKCgpuZXR3b3JrczoKICBkZWZhdWx0OgogICAgZXh0ZXJuYWw6IHRydWUKICAgIG5hbWU6IHByb3h5Cg=="
+DEFAULT_ENV_TEMPLATE_B64="IyNBREQvQ0hBTkdFL0VESVQgUkVRVUlSRUQgVkFSSUFCTEVTCgpQVUlEPTEyMzQKUEdJRD0xMjM0ClRaPUV1cm9wZS9QYXJpcwoKQ09ORklHRk9MREVSPSMjQ09ORklHX0ZPTERFUiMjCgpET01BSU5OQU1FPW15ZG9tYWluLmNvbQ=="
+## End Base64 Encoded template files
+
+DOCKER_COMPOSE_BIN=""
+CONTAINERS_PARAM=""
+
+RED="\e[31m"
+GREEN="\e[32m"
+YELLOW="\e[33m"
+ENDCOLOR="\e[0m"
+
+
+
+function main() {
+  if [ -z "$DOCKER_FILES" ]
+  then
+    echo "Env Variable DOCKER_FILES doesn't exists or is not exported!"
+    exit 1
+  fi
+
+  case "${1}" in
+    start|up)
+      ACTION=start
+      shift # shift once since flags have no values
+      ;;
+    stop|down)
+      ACTION=stop
+      shift
+      ;;
+    restart)
+      ACTION=restart
+      shift
+      ;;
+    list)
+      ACTION=list
+      shift
+      ;;
+    update)
+      ACTION=update
+      shift
+      ;;
+    enable)
+      ACTION=enable
+      shift
+      ;;
+    disable)
+      ACTION=disable
+      shift
+      ;;
+    create|new)
+      ACTION=create
+      shift
+      ;;
+    remove|delete)
+      ACTION=remove
+      shift
+      ;;
+    status)
+      ACTION=status
+      shift
+      ;;
+    edit)
+      ACTION=edit
+      shift
+      ;;
+    pause)
+      ACTION=pause
+      shift
+      ;;
+    unpause)
+      ACTION=unpause
+      shift
+      ;;
+    help|-h)
+      usage
+      exit 0
+      ;;
+    *) # unknown flag/switch
+      echo "Invalid parameter: ${1}"
+      usage
+      exit 255
+      ;;
+  esac
+
+  docker-privileges-check
+  
+  set-docker-compose-bin
+
+  CONTAINERS_PARAM=$1
+
+  if [ -z $CONTAINERS_PARAM ] || [ "$CONTAINERS_PARAM" == "all" ]
+  then
+      #CONTAINERS=$(echo $DOCKERCOMPOSE_DIR/*/*.docker-compose.yml | sed -e "s|$DOCKERCOMPOSE_DIR/[^/]*/||g" -e "s|.docker-compose.yml||g")
+      CONTAINERS=$(for f in $DOCKER_FILES/*/docker-compose.y*ml ;do echo -n "$(basename $(dirname $f)) ";done;)
+
+  else
+      CONTAINERS="$@"
+  fi
+
+  ${ACTION} "$CONTAINERS"
+}
+
+function usage() {
+  echo "stack ACTION [STACKS LIST]"
+  echo "where:"
+  echo "    ACTION=     start|up  : Start the specified stacks"
+  echo "                stop|down : Stop the specified stacks"
+  echo "                restart   : Restart the specified stacks"
+  echo "                update    : Pull new images & restart if it was running"
+  echo "                enable    : Mark an as being always considered by 'all' (for start)"
+  echo "                disable   : Remove the 'enabled' flag"
+  echo "                pause     : Stops the specified stacks and marks for restart - Usefull for backup"
+  echo "                unpause   : Restart stacks marked by pause"
+  echo ""
+  echo "    STACKS LIST= all       : Process all stacks"
+  echo "                List of containers   : stack1 stack2 stack3 ...."
+  echo "                default   : all"
+  echo ""
+  echo "stack ACTION [STACK]"
+  echo "where:"
+  echo "    ACTION=     create|new    : Get status of stack apps"
+  echo "                delete|remove : List available stack"
+  echo "                edit : edit the docker-compose file of the specified app"
+  echo "    STACK=      Name of the stack to create/delete/edit"
+  echo "                In the case of 'edit', it can also be template or .env."
+  echo ""
+  echo "stack ACTION"
+  echo "where:"
+  echo "    ACTION=     status    : Get status of stack apps (can take some time as it queries containers)"
+  echo "                list      : List available stack"
+  echo "                help      : Display this help"
+}
+
+function error(){
+  echo -e "${RED}ERROR:${ENDCOLOR} $@"
+}
+
+function warning(){
+  echo -e "${YELLOW}WARNING:${ENDCOLOR} $@"
+}
+
+function status(){
+  local containers="$@"
+  for c in $containers
+  do
+    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    then
+      if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
+      then
+        status=enabled
+      else
+        status=" "
+      fi
+
+      #echo "$c" >&2
+      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml top) ]]
+      then	
+        running_status="${GREEN}Running${ENDCOLOR}"
+      else
+        running_status="${RED}Stopped${ENDCOLOR}"
+      fi
+
+      echo -e "$c|$running_status|$status|" $DOCKER_FILES/$c/docker-compose.y*ml
+    else
+      warning "No $c app found" >&2
+    fi
+  done | column -t -s'|' 
+
+}
+
+function list(){
+  local containers="$@"
+  for c in $containers
+  do
+    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    then
+      if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
+      then
+        status=enabled
+      else
+        status=" "
+      fi
+
+      echo -e "$c|$status|" $DOCKER_FILES/$c/docker-compose.y*ml
+    else
+      warning "No $c app found" >&2
+    fi
+  done | column -t -s'|' 
+
+}
+
+function start(){
+  local containers="$@"
+  for c in $containers
+  do
+    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    then
+      if [ $CONTAINERS_PARAM == "all" ]
+      then
+        if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
+        then
+          echo "Starting $c ..."
+          $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
+        fi
+      else
+        echo "Starting $c ..."
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
+      fi
+    else
+      warning "No $c app found" >&2
+    fi
+  done
+}
+
+function stop(){
+  local containers="$@"
+  for c in $containers
+  do
+    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    then
+      echo "...Stopping $c ..."
+      $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml down
+    else
+      warning "No $c app found" >&2
+    fi
+  done
+}
+
+function restart() {
+  local containers="$@"
+  for c in $containers
+  do
+    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    then
+      echo "Restarting $c ..."
+      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml top) ]]
+      then
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml down
+      fi
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
+    else
+      warning "No $c app found" >&2
+    fi
+    echo
+  done
+
+}
+
+function update(){
+  local containers="$@"
+  for c in $containers
+  do
+	if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+	then
+		echo "Updating $c ..."
+		$DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml pull
+		if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml top) ]]
+		then	
+			echo "Restarting $c ..."
+			$DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
+      
+		fi
+    echo
+	else
+		warning "No $c app found" >&2
+	fi
+  done
+}
+
+function enable(){
+  local containers="$@"
+  for c in $containers
+  do
+    if ls $DOCKER_FILES/$c 1>/dev/null 2>&1
+    then
+      if ! ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
+      then
+        touch $DOCKER_FILES/$c/.enabled
+        echo "$c app is enabled"
+      else
+        warning "$c app is already enabled" >&2
+      fi
+    else
+      warning "No $c app found" >&2
+    fi
+  done
+}
+
+function disable(){
+  local containers="$@"
+  for c in $containers
+  do
+    if ls $DOCKER_FILES/$c 1>/dev/null 2>&1
+    then
+      if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
+      then
+        rm $DOCKER_FILES/$c/.enabled
+        echo "$c app is now disabled"
+      else
+        warning "$c app is already disabled" >&2
+      fi
+    else
+      warning "No $c app found" >&2
+    fi
+  done
+}
+
+function create(){
+  continue=0
+  if [ ! -f "$DOCKER_FILES/docker-compose.yaml.template" ]; then
+    warning "docker-compose.yaml template doesn't exist. Generating a default one."
+    echo $DEFAULT_DOCKERCOMPOSE_TEMPLATE_B64 | base64 -d >> "$DOCKER_FILES/docker-compose.yaml.template"
+    echo "You can now edit it with 'stack edit template'"
+    
+  fi
+
+  if [ ! -f "$DOCKER_FILES/.env" ]; then
+    warning ".env doesn't exist. Generating a default one."
+    echo $DEFAULT_ENV_TEMPLATE_B64 | base64 -d >> "$DOCKER_FILES/.env"
+    sed -i $DOCKER_FILES/.env -e "s|##CONFIG_FOLDER##|$DOCKER_FILES|g"
+    echo "You can now edit it with 'stack edit .env'"
+    ((continue++))  
+  fi
+
+  if (( $continue > 0 )); then
+    error "Aborting Creation"
+    exit 1
+  fi
+
+  if [[ $CONTAINERS_PARAM == "all" || -z $CONTAINERS_PARAM ]]
+  then
+    error "${RED}ABORTING!${ENDCOLOR} You need to specify a name (different from 'all') for the new stack"
+    exit 1
+  fi
+  
+
+  if ! ls $DOCKER_FILES/$1 1>/dev/null 2>&1
+  then
+    mkdir $DOCKER_FILES/$1
+    mkdir -p $DOCKER_FILES/$1/data/config
+    ln -s ../.env $DOCKER_FILES/$1/.env
+    cp $DOCKER_FILES/docker-compose.yaml.template $DOCKER_FILES/$1/docker-compose.yaml
+    sed -i $DOCKER_FILES/$1/docker-compose.yaml -e "s/##CONTAINER##/$1/g"
+    echo File structure for $1 created in $DOCKER_FILES/$1
+  else
+    warning "$1 app already exists" >&2
+  fi
+
+}
+
+function remove(){
+  if [[ $CONTAINERS_PARAM == "all" || -z $CONTAINERS_PARAM ]]
+  then
+    error "${RED}ABORTING!${ENDCOLOR} Won't delete everything!"
+    exit 1
+  fi
+
+  local containers="$@"
+  for c in $containers
+  do
+    if ls $DOCKER_FILES/$c 1>/dev/null 2>&1
+    then
+      read -p "Delete $c? [Y|N]: " -n 1 -r
+      echo    # (optional) move to a new line
+      if [[ $REPLY =~ ^[Yy]$ ]]
+      then
+        echo "Deleting $c"
+        rm -rf $DOCKER_FILES/$c
+        if (( $? > 0 )); then
+          echo "An error occured while deleting $c. Some files may belong to another user."
+          read -p "Let's try as root (sudo)? [Y|N]: " -n 1 -r
+          echo    # (optional) move to a new line
+          if [[ $REPLY =~ ^[Yy]$ ]]
+          then
+            echo "Deleting $c as root"
+            sudo rm -rf $DOCKER_FILES/$c
+          fi
+        fi
+        
+      fi
+      
+    else
+      warning "No $c app found" >&2
+    fi
+  done
+}
+
+function edit(){
+  if [[ $CONTAINERS_PARAM == "all" || -z $CONTAINERS_PARAM ]]
+  then
+    error "${RED}ABORTING!${ENDCOLOR} Won't edit (every|no)thing!"
+    exit 1
+  fi
+
+  if [[ "${1}" == "template" ]]; then
+    $EDITOR $DOCKER_FILES/docker-compose.yaml.template
+  elif [[ "${1}" == ".env" ]]; then
+    $EDITOR $DOCKER_FILES/.env
+  elif ls $DOCKER_FILES/$1/docker-compose.y*ml 1>/dev/null 2>&1
+  then
+    $EDITOR $DOCKER_FILES/$1/docker-compose.y*ml
+  else
+    warning " No $1 app found" >&2
+  fi
+  
+}
+
+
+function pause(){
+  local containers="$@"
+  for c in $containers
+  do
+    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    then
+      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml top) ]]
+      then
+        echo "Stop $c and mark for restart"
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml down
+        touch $DOCKER_FILES/$c/.paused
+      fi
+    else
+      warning "No $c app found" >&2
+    fi
+  done 
+}
+
+function unpause(){
+
+  local containers="$@"
+  for c in $containers
+  do
+    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    then
+
+      if ls $DOCKER_FILES/$c/.paused 1>/dev/null 2>&1
+      then
+        echo "Restarting paused stack $c ..."
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
+        rm $DOCKER_FILES/$c/.paused
+      fi
+    else
+      warning "No $c app found" >&2
+    fi
+  done
+}
+
+function docker-privileges-check(){
+  docker version 2>&1 >/dev/null
+  local RC=$?
+  if (( $RC != 0 )); then
+    error "It seems you don't have privileges to run docker commands. You should either use sudo or be member of the docker group. Aborting."
+    exit 10
+  fi
+  
+}
+
+function set-docker-compose-bin(){
+  if docker compose version 2>&1 > /dev/null
+  then
+    DOCKER_COMPOSE_BIN="docker compose"
+  elif docker-compose --version 2>&1 > /dev/null
+  then
+    DOCKER_COMPOSE_BIN="docker-compose"
+  else
+    error "No docker compose (plugin or binary) found. Aborting"
+    exit 11
+  fi
+}
+
+main "$@";

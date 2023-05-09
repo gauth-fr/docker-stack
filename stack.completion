@@ -1,0 +1,103 @@
+#/usr/bin/env bash
+
+_stack_completions()
+{
+	if [[ $COMP_CWORD -eq 1 ]]
+	then
+		## Suggestions for the second word (basically the possible actions)
+		COMPREPLY=($(compgen -W "help list restart start stop update enable disable create new remove edit" -- "${COMP_WORDS[1]}"))
+	elif [[ $COMP_CWORD -eq 2 ]]
+	then
+		## Suggestions for the third  word (basically the possible actions)
+		# if the second word is an action that doesn't require any suggestion, we return
+		# if the second word can have suggestion, we propose the list of containers + all (except for remove, we don't want all)
+		if [[ ${COMP_WORDS[1]} == "help" || ${COMP_WORDS[1]} == "create" || ${COMP_WORDS[1]} == "new" ]]
+		then
+			return
+		else 
+			local IFS=$'\n'
+
+			ADDITIONAL_VALUES="all"
+
+			## For delete, we don't want the all keyword
+			if [[ ${COMP_WORDS[1]} == "remove" || ${COMP_WORDS[1]} == "delete" ]]
+			then
+				ADDITIONAL_VALUES=""
+			elif [[ ${COMP_WORDS[1]} == "edit" ]]
+			then
+				ADDITIONAL_VALUES="template"
+			fi
+			local suggestions=( $(compgen -W "$ADDITIONAL_VALUES"$'\n'"$(stack list | grep -v ACTION | cut -d' ' -f1)" -- "${COMP_WORDS[2]}"))
+			
+			if [ "${#suggestions[@]}" == "1" ]; then
+				COMPREPLY=${suggestions}
+			else
+				for i in "${!suggestions[@]}"; do	
+				  suggestions[$i]="$(printf '%*s' "-$COLUMNS"  "${suggestions[$i]}")"
+				done
+
+				COMPREPLY=("${suggestions[@]}")
+			fi
+		fi
+	elif [[ $COMP_CWORD -eq 3 ]]
+	then
+		## Suggestions for the third  word (basically the possible actions)
+		# if the second word is an action that doesn't require any suggestion, we return
+		# if the second word can have suggestion, we propose the list of containers + all (except for remove, we don't want all)
+		if [[ ${COMP_WORDS[1]} == "edit" ]]
+		then
+			return
+		fi
+
+
+		local IFS=$'\n'
+		
+		already_used='^'$(_stack_join_by "$|^" "${COMP_WORDS[@]}")'$'
+	
+		local suggestions=( $(compgen -W "$(stack list | grep -v ACTION | cut -d' ' -f1 | grep -Ev "$already_used")" -- "${COMP_WORDS[COMP_CWORD]}"))
+		if [ "${#suggestions[@]}" == "1" ]; then
+			COMPREPLY=${suggestions}
+		else
+			for i in "${!suggestions[@]}"; do
+				suggestions[$i]="$(printf '%*s' "-$COLUMNS"  "${suggestions[$i]}")"
+			done
+
+			COMPREPLY=("${suggestions[@]}")
+		fi
+	else
+		## We are at the 3 word or more:
+		# if all is the 3rd word, we don't propose anything anymore (return)
+		# otherwise we don't add all anymore in the suggestions
+
+		if [[ ${COMP_WORDS[2]} == "all" ]]
+		then
+			return
+		else 
+			local IFS=$'\n'
+			
+			already_used='^'$(_stack_join_by "$|^" "${COMP_WORDS[@]}")'$'
+		
+			local suggestions=( $(compgen -W "$(stack list | grep -v ACTION | cut -d' ' -f1 | grep -Ev "$already_used")" -- "${COMP_WORDS[COMP_CWORD]}"))
+			if [ "${#suggestions[@]}" == "1" ]; then
+				COMPREPLY=${suggestions}
+			else
+				for i in "${!suggestions[@]}"; do
+				  suggestions[$i]="$(printf '%*s' "-$COLUMNS"  "${suggestions[$i]}")"
+				done
+
+				COMPREPLY=("${suggestions[@]}")
+			fi
+		fi
+	fi
+	
+}
+
+_stack_join_by()
+{
+  local d=${1-} f=${2-}
+  if shift 2; then
+    printf %s "$f" "${@/#/$d}"
+  fi
+}
+
+complete -F _stack_completions stack

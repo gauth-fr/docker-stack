@@ -1,0 +1,27 @@
+version: "3.8"
+services:
+  ##CONTAINER##:
+    container_name: ##CONTAINER##
+    image: traefik/whoami
+    restart: unless-stopped
+    ports:
+        - 11080:80
+    volumes:
+      - $CONFIGFOLDER/##CONTAINER##/data/config:/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.##CONTAINER##-service.loadbalancer.server.port=80"
+
+      - "traefik.http.routers.##CONTAINER##-secure.entrypoints=websecure"
+      - "traefik.http.routers.##CONTAINER##-secure.rule=Host(`##CONTAINER##.$DOMAINNAME`)"
+      - "traefik.http.routers.##CONTAINER##-secure.middlewares=local-network@file, chain-auth-authelia@file"
+      - "traefik.http.routers.##CONTAINER##-secure.priority=10"
+      - "traefik.http.routers.##CONTAINER##-secure.tls=true"
+      - "traefik.http.routers.##CONTAINER##-secure.tls.certresolver=myresolver"
+      - "traefik.http.routers.##CONTAINER##-secure.service=##CONTAINER##-service"
+
+
+networks:
+  default:
+    external: true
+    name: proxy

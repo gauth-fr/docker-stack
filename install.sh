@@ -21,7 +21,7 @@ mkdir -p $DOCKER_FILES
 chmod 770 $DOCKER_FILES
 echo "Run stack init" 
 /usr/local/bin/stack init
-chown -R $OWNER: $DOCKER_FILES
+chown $OWNER: $DOCKER_FILES $DOCKER_FILES/.env  $DOCKER_FILES/docker-compose.yaml.template
 
 if [ -d "/etc/bash_completion.d" ]; then
     echo "Copying completion file to /etc/bash_completion.d/stack.completion"

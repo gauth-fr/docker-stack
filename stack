@@ -244,8 +244,11 @@ function restart() {
       if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml top) ]]
       then
         $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml down
-      fi
         $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
+      else
+        warning "$c is not running. Start it first." >&2
+      fi
+        
     else
       warning "No $c app found" >&2
     fi

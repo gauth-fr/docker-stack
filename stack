@@ -89,7 +89,7 @@ function main() {
       ;;
   esac
 
-  docker-privileges-check
+  docker-privileges-check ${ACTION}
   
   set-docker-compose-bin
 
@@ -477,12 +477,16 @@ function init(){
 }
 
 function docker-privileges-check(){
-  docker version 2>&1 >/dev/null
-  local RC=$?
-  if (( $RC != 0 )); then
-    error "It seems you don't have privileges to run docker commands. You should either use sudo or be member of the docker group. Aborting."
-    exit 10
+  local docker_not_required_for="list enable disable create remove edit init"
+  if [[ "$docker_not_required_for" != *"$1"* ]]; then
+    docker version 2>&1 >/dev/null
+    local RC=$?
+    if (( $RC != 0 )); then
+      error "It seems you don't have privileges to run docker commands. You should either use sudo or be member of the docker group. Aborting."
+      exit 10
+    fi
   fi
+
   
 }
 

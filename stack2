@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-DOCKER_FILES=##DOCKER_FILES##
+DOCKER_FILES=/opt/docker-files2
 EDITOR=vim
 
 DEFAULT_DOCKERCOMPOSE_TEMPLATE_B64="dmVyc2lvbjogIjMuOCIKc2VydmljZXM6CiAgIyNDT05UQUlORVIjIzoKICAgIGNvbnRhaW5lcl9uYW1lOiAjI0NPTlRBSU5FUiMjCiAgICBpbWFnZTogdHJhZWZpay93aG9hbWkKICAgIHJlc3RhcnQ6IHVubGVzcy1zdG9wcGVkCiAgICBwb3J0czoKICAgICAgICAtIDExMDgwOjgwCiAgICB2b2x1bWVzOgogICAgICAtICRDT05GSUdGT0xERVIvIyNDT05UQUlORVIjIy9kYXRhL2NvbmZpZzovY29uZmlnCiAgICBsYWJlbHM6CiAgICAgIC0gInRyYWVmaWsuZW5hYmxlPXRydWUiCiAgICAgIC0gInRyYWVmaWsuaHR0cC5zZXJ2aWNlcy4jI0NPTlRBSU5FUiMjLXNlcnZpY2UubG9hZGJhbGFuY2VyLnNlcnZlci5wb3J0PTgwIgoKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUuZW50cnlwb2ludHM9d2Vic2VjdXJlIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS5ydWxlPUhvc3QoYCMjQ09OVEFJTkVSIyMuJERPTUFJTk5BTUVgKSIKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUubWlkZGxld2FyZXM9bG9jYWwtbmV0d29ya0BmaWxlLCBjaGFpbi1hdXRoLWF1dGhlbGlhQGZpbGUiCiAgICAgIC0gInRyYWVmaWsuaHR0cC5yb3V0ZXJzLiMjQ09OVEFJTkVSIyMtc2VjdXJlLnByaW9yaXR5PTEwIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS50bHM9dHJ1ZSIKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUudGxzLmNlcnRyZXNvbHZlcj1teXJlc29sdmVyIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS5zZXJ2aWNlPSMjQ09OVEFJTkVSIyMtc2VydmljZSIKCgpuZXR3b3JrczoKICBkZWZhdWx0OgogICAgZXh0ZXJuYWw6IHRydWUKICAgIG5hbWU6IHByb3h5Cg=="
@@ -78,10 +78,6 @@ function main() {
       ACTION=init
       shift
       ;;
-    self-update)
-      ACTION=self-update
-      shift
-      ;;
     help|-h)
       usage
       exit 0
@@ -93,7 +89,7 @@ function main() {
       ;;
   esac
 
-  docker-privileges-check ${ACTION}
+  docker-privileges-check
   
   set-docker-compose-bin
 
@@ -137,11 +133,10 @@ function usage() {
   echo ""
   echo "stack ACTION"
   echo "where:"
-  echo "    ACTION=     status      : Get status of stack apps (can take some time as it queries containers)"
-  echo "                list        : List available stack"
-  echo "                init        : Initialize template and .env file"
-  echo "                self-update : Update script & completion"
-  echo "                help        : Display this help"
+  echo "    ACTION=     status    : Get status of stack apps (can take some time as it queries containers)"
+  echo "                list      : List available stack"
+  echo "                init      : Initialize template and .env file"
+  echo "                help      : Display this help"
 }
 
 function error(){
@@ -249,11 +244,8 @@ function restart() {
       if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml top) ]]
       then
         $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml down
-        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
-      else
-        warning "$c is not running. Start it first." >&2
       fi
-        
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
     else
       warning "No $c app found" >&2
     fi
@@ -482,16 +474,12 @@ function init(){
 }
 
 function docker-privileges-check(){
-  local docker_not_required_for="list enable disable create remove edit init"
-  if [[ "$docker_not_required_for" != *"$1"* ]]; then
-    docker version 2>&1 >/dev/null
-    local RC=$?
-    if (( $RC != 0 )); then
-      error "It seems you don't have privileges to run docker commands. You should either use sudo or be member of the docker group. Aborting."
-      exit 10
-    fi
+  docker version 2>&1 >/dev/null
+  local RC=$?
+  if (( $RC != 0 )); then
+    error "It seems you don't have privileges to run docker commands. You should either use sudo or be member of the docker group. Aborting."
+    exit 10
   fi
-
   
 }
 
@@ -505,23 +493,6 @@ function set-docker-compose-bin(){
   else
     error "No docker compose (plugin or binary) found. Aborting"
     exit 11
-  fi
-}
-
-function self-update(){
-  if (( $(id -u) != 0 )); then
-    error "Self-update should either be run as root or with sudo! Aborting self-update..."
-    exit 1
-  fi
-  echo "Updating script to /usr/local/bin/stack"
-  curl -s -o /usr/local/bin/stack https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack
-  chmod 755 /usr/local/bin/stack
-  sed -i /usr/local/bin/stack -e "s|##DOCKER_FILES##|$DOCKER_FILES|g"
-
-  if [ -d "/etc/bash_completion.d" ]; then
-    echo "Updating completion file to /etc/bash_completion.d/stack.completion"
-    curl -s -o /etc/bash_completion.d/stack.completion https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack.completion
-    chmod 644 /etc/bash_completion.d/stack.completion 
   fi
 }
 

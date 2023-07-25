@@ -5,13 +5,13 @@ _stack_completions()
 	if [[ $COMP_CWORD -eq 1 ]]
 	then
 		## Suggestions for the second word (basically the possible actions)
-		COMPREPLY=($(compgen -W "help list restart start stop update enable disable create new remove edit init" -- "${COMP_WORDS[1]}"))
+		COMPREPLY=($(compgen -W "help list restart start stop update enable disable create new remove edit init self-update" -- "${COMP_WORDS[1]}"))
 	elif [[ $COMP_CWORD -eq 2 ]]
 	then
 		## Suggestions for the third  word (basically the possible actions)
 		# if the second word is an action that doesn't require any suggestion, we return
 		# if the second word can have suggestion, we propose the list of containers + all (except for remove, we don't want all)
-		if [[ ${COMP_WORDS[1]} == "help" || ${COMP_WORDS[1]} == "create" || ${COMP_WORDS[1]} == "new" || ${COMP_WORDS[1]} == "init" ]]
+		if [[ ${COMP_WORDS[1]} == "help" || ${COMP_WORDS[1]} == "create" || ${COMP_WORDS[1]} == "new" || ${COMP_WORDS[1]} == "init" || ${COMP_WORDS[1]} == "self-update" ||  ]]
 		then
 			return
 		else 

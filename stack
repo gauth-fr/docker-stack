@@ -145,11 +145,11 @@ function usage() {
 }
 
 function error(){
-  echo -e "${RED}ERROR:${ENDCOLOR} $@"
+  echo -e "${RED}ERROR:${ENDCOLOR} $@" >&2
 }
 
 function warning(){
-  echo -e "${YELLOW}WARNING:${ENDCOLOR} $@"
+  echo -e "${YELLOW}WARNING:${ENDCOLOR} $@" >&2
 }
 
 function status(){

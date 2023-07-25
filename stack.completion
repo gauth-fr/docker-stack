@@ -27,7 +27,7 @@ _stack_completions()
 			then
 				ADDITIONAL_VALUES="template"
 			fi
-			local suggestions=( $(compgen -W "$ADDITIONAL_VALUES"$'\n'"$(stack list | grep -v ACTION | cut -d' ' -f1)" -- "${COMP_WORDS[2]}"))
+			local suggestions=( $(compgen -W "$ADDITIONAL_VALUES"$'\n'"$(stack list 2>/dev/null | grep -v ACTION | cut -d' ' -f1)" -- "${COMP_WORDS[2]}"))
 			
 			if [ "${#suggestions[@]}" == "1" ]; then
 				COMPREPLY=${suggestions}
@@ -54,7 +54,7 @@ _stack_completions()
 		
 		already_used='^'$(_stack_join_by "$|^" "${COMP_WORDS[@]}")'$'
 	
-		local suggestions=( $(compgen -W "$(stack list | grep -v ACTION | cut -d' ' -f1 | grep -Ev "$already_used")" -- "${COMP_WORDS[COMP_CWORD]}"))
+		local suggestions=( $(compgen -W "$(stack list 2>/dev/null  | grep -v ACTION | cut -d' ' -f1 | grep -Ev "$already_used")" -- "${COMP_WORDS[COMP_CWORD]}"))
 		if [ "${#suggestions[@]}" == "1" ]; then
 			COMPREPLY=${suggestions}
 		else
@@ -77,7 +77,7 @@ _stack_completions()
 			
 			already_used='^'$(_stack_join_by "$|^" "${COMP_WORDS[@]}")'$'
 		
-			local suggestions=( $(compgen -W "$(stack list | grep -v ACTION | cut -d' ' -f1 | grep -Ev "$already_used")" -- "${COMP_WORDS[COMP_CWORD]}"))
+			local suggestions=( $(compgen -W "$(stack list 2>/dev/null  | grep -v ACTION | cut -d' ' -f1 | grep -Ev "$already_used")" -- "${COMP_WORDS[COMP_CWORD]}"))
 			if [ "${#suggestions[@]}" == "1" ]; then
 				COMPREPLY=${suggestions}
 			else

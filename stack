@@ -165,7 +165,7 @@ function status(){
         status=" "
       fi
 
-      #echo "$c" >&2
+      #echo "$c" 
       if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml top) ]]
       then	
         running_status="${GREEN}Running${ENDCOLOR}"
@@ -175,7 +175,7 @@ function status(){
 
       echo -e "$c|$running_status|$status|" $DOCKER_FILES/$c/docker-compose.y*ml
     else
-      warning "No $c app found" >&2
+      warning "No $c app found" 
     fi
   done | column -t -s'|' 
 
@@ -196,7 +196,7 @@ function list(){
 
       echo -e "$c|$status|" $DOCKER_FILES/$c/docker-compose.y*ml
     else
-      warning "No $c app found" >&2
+      warning "No $c app found" 
     fi
   done | column -t -s'|' 
 
@@ -220,7 +220,7 @@ function start(){
         $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
       fi
     else
-      warning "No $c app found" >&2
+      warning "No $c app found" 
     fi
   done
 }
@@ -234,7 +234,7 @@ function stop(){
       echo "...Stopping $c ..."
       $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml down
     else
-      warning "No $c app found" >&2
+      warning "No $c app found" 
     fi
   done
 }
@@ -251,11 +251,11 @@ function restart() {
         $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml down
         $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
       else
-        warning "$c is not running. Start it first." >&2
+        warning "$c is not running. Start it first." 
       fi
         
     else
-      warning "No $c app found" >&2
+      warning "No $c app found" 
     fi
     echo
   done
@@ -278,7 +278,7 @@ function update(){
 		fi
     echo
 	else
-		warning "No $c app found" >&2
+		warning "No $c app found" 
 	fi
   done
 }
@@ -294,10 +294,10 @@ function enable(){
         touch $DOCKER_FILES/$c/.enabled
         echo "$c app is enabled"
       else
-        warning "$c app is already enabled" >&2
+        warning "$c app is already enabled" 
       fi
     else
-      warning "No $c app found" >&2
+      warning "No $c app found" 
     fi
   done
 }
@@ -313,10 +313,10 @@ function disable(){
         rm $DOCKER_FILES/$c/.enabled
         echo "$c app is now disabled"
       else
-        warning "$c app is already disabled" >&2
+        warning "$c app is already disabled" 
       fi
     else
-      warning "No $c app found" >&2
+      warning "No $c app found" 
     fi
   done
 }
@@ -361,7 +361,7 @@ function create(){
     sed -i $DOCKER_FILES/$1/docker-compose.yaml -e "s/##CONTAINER##/$1/g"
     echo File structure for $1 created in $DOCKER_FILES/$1
   else
-    warning "$1 app already exists" >&2
+    warning "$1 app already exists" 
   fi
 
 }
@@ -398,7 +398,7 @@ function remove(){
       fi
       
     else
-      warning "No $c app found" >&2
+      warning "No $c app found" 
     fi
   done
 }
@@ -418,7 +418,7 @@ function edit(){
   then
     $EDITOR $DOCKER_FILES/$1/docker-compose.y*ml
   else
-    warning " No $1 app found" >&2
+    warning " No $1 app found" 
   fi
   
 }
@@ -437,7 +437,7 @@ function pause(){
         touch $DOCKER_FILES/$c/.paused
       fi
     else
-      warning "No $c app found" >&2
+      warning "No $c app found" 
     fi
   done 
 }
@@ -457,7 +457,7 @@ function unpause(){
         rm $DOCKER_FILES/$c/.paused
       fi
     else
-      warning "No $c app found" >&2
+      warning "No $c app found" 
     fi
   done
 }
@@ -484,7 +484,7 @@ function init(){
 function docker-privileges-check(){
   local docker_not_required_for="list enable disable create remove edit init"
   if [[ "$docker_not_required_for" != *"$1"* ]]; then
-    docker version 2>&1 >/dev/null
+    docker version >/dev/null 2>&1
     local RC=$?
     if (( $RC != 0 )); then
       error "It seems you don't have privileges to run docker commands. You should either use sudo or be member of the docker group. Aborting."
@@ -496,10 +496,10 @@ function docker-privileges-check(){
 }
 
 function set-docker-compose-bin(){
-  if docker compose version 2>&1 > /dev/null
+  if docker compose version >/dev/null 2>&1
   then
     DOCKER_COMPOSE_BIN="docker compose"
-  elif docker-compose --version 2>&1 > /dev/null
+  elif docker-compose --version >/dev/null 2>&1
   then
     DOCKER_COMPOSE_BIN="docker-compose"
   else

@@ -7,6 +7,8 @@ DEFAULT_ENV_TEMPLATE_B64="IyNBREQvQ0hBTkdFL0VESVQgUkVRVUlSRUQgVkFSSUFCTEVTCgpQVU
 DOCKER_COMPOSE_BIN=""
 CONTAINERS_PARAM=""
 
+COMPOSE_PATTERN='*compose.y*ml'
+
 RED="\e[31m"
 GREEN="\e[32m"
 YELLOW="\e[33m"
@@ -102,8 +104,7 @@ function main() {
   if [ -z $CONTAINERS_PARAM ] || [ "$CONTAINERS_PARAM" == "all" ]
   then
       #CONTAINERS=$(echo $DOCKERCOMPOSE_DIR/*/*.docker-compose.yml | sed -e "s|$DOCKERCOMPOSE_DIR/[^/]*/||g" -e "s|.docker-compose.yml||g")
-      CONTAINERS=$(for f in $DOCKER_FILES/*/docker-compose.y*ml ;do echo -n "$(basename $(dirname $f)) ";done;)
-
+      CONTAINERS=$(for f in $DOCKER_FILES/*/$COMPOSE_PATTERN ;do echo -n "$(basename $(dirname $f)) ";done;)
   else
       CONTAINERS="$@"
   fi
@@ -156,7 +157,7 @@ function status(){
   local containers="$@"
   for c in $containers
   do
-    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
       if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
       then
@@ -166,14 +167,14 @@ function status(){
       fi
 
       #echo "$c" 
-      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml top) ]]
+      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN top) ]]
       then	
         running_status="${GREEN}Running${ENDCOLOR}"
       else
         running_status="${RED}Stopped${ENDCOLOR}"
       fi
 
-      echo -e "$c|$running_status|$status|" $DOCKER_FILES/$c/docker-compose.y*ml
+      echo -e "$c|$running_status|$status|" $DOCKER_FILES/$c/$COMPOSE_PATTERN
     else
       warning "No $c app found" 
     fi
@@ -185,7 +186,7 @@ function list(){
   local containers="$@"
   for c in $containers
   do
-    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
       if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
       then
@@ -194,7 +195,7 @@ function list(){
         status=" "
       fi
 
-      echo -e "$c|$status|" $DOCKER_FILES/$c/docker-compose.y*ml
+      echo -e "$c|$status|" $DOCKER_FILES/$c/$COMPOSE_PATTERN
     else
       warning "No $c app found" 
     fi
@@ -206,18 +207,18 @@ function start(){
   local containers="$@"
   for c in $containers
   do
-    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
       if [ $CONTAINERS_PARAM == "all" ]
       then
         if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
         then
           echo "Starting $c ..."
-          $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
+          $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN up -d
         fi
       else
         echo "Starting $c ..."
-        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN up -d
       fi
     else
       warning "No $c app found" 
@@ -229,10 +230,10 @@ function stop(){
   local containers="$@"
   for c in $containers
   do
-    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
       echo "...Stopping $c ..."
-      $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml down
+      $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN down
     else
       warning "No $c app found" 
     fi
@@ -243,13 +244,13 @@ function restart() {
   local containers="$@"
   for c in $containers
   do
-    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
       echo "Restarting $c ..."
-      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml top) ]]
+      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN top) ]]
       then
-        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml down
-        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN down
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN up -d
       else
         warning "$c is not running. Start it first." 
       fi
@@ -266,14 +267,14 @@ function update(){
   local containers="$@"
   for c in $containers
   do
-	if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+	if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
 	then
 		echo "Updating $c ..."
-		$DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml pull
-		if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml top) ]]
+		$DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN pull
+		if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN top) ]]
 		then	
 			echo "Restarting $c ..."
-			$DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
+			$DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN up -d
       
 		fi
     echo
@@ -414,9 +415,9 @@ function edit(){
     $EDITOR $DOCKER_FILES/docker-compose.yaml.template
   elif [[ "${1}" == ".env" ]]; then
     $EDITOR $DOCKER_FILES/.env
-  elif ls $DOCKER_FILES/$1/docker-compose.y*ml 1>/dev/null 2>&1
+  elif ls $DOCKER_FILES/$1/$COMPOSE_PATTERN 1>/dev/null 2>&1
   then
-    $EDITOR $DOCKER_FILES/$1/docker-compose.y*ml
+    $EDITOR $DOCKER_FILES/$1/$COMPOSE_PATTERN
   else
     warning " No $1 app found" 
   fi
@@ -428,12 +429,12 @@ function pause(){
   local containers="$@"
   for c in $containers
   do
-    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
-      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml top) ]]
+      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN top) ]]
       then
         echo "Stop $c and mark for restart"
-        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml down
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN down
         touch $DOCKER_FILES/$c/.paused
       fi
     else
@@ -447,13 +448,13 @@ function unpause(){
   local containers="$@"
   for c in $containers
   do
-    if ls $DOCKER_FILES/$c/docker-compose.y*ml 1>/dev/null 2>&1
+    if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
 
       if ls $DOCKER_FILES/$c/.paused 1>/dev/null 2>&1
       then
         echo "Restarting paused stack $c ..."
-        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/docker-compose.y*ml up -d
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN up -d
         rm $DOCKER_FILES/$c/.paused
       fi
     else

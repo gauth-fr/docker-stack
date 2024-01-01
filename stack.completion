@@ -11,7 +11,7 @@ _stack_completions()
 		## Suggestions for the third  word (basically the possible actions)
 		# if the second word is an action that doesn't require any suggestion, we return
 		# if the second word can have suggestion, we propose the list of containers + all (except for remove, we don't want all)
-		if [[ ${COMP_WORDS[1]} == "help" || ${COMP_WORDS[1]} == "create" || ${COMP_WORDS[1]} == "new" || ${COMP_WORDS[1]} == "init" || ${COMP_WORDS[1]} == "self-update" ||  ]]
+		if [[ ${COMP_WORDS[1]} == "help" || ${COMP_WORDS[1]} == "create" || ${COMP_WORDS[1]} == "new" || ${COMP_WORDS[1]} == "init" || ${COMP_WORDS[1]} == "self-update"  ]]
 		then
 			return
 		else 

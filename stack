@@ -510,19 +510,38 @@ function set-docker-compose-bin(){
 }
 
 function self-update(){
-  if (( $(id -u) != 0 )); then
-    error "Self-update should either be run as root or with sudo! Aborting self-update..."
+  
+  SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+  SCRIPT_NAME=$(basename "$(readlink -f "${BASH_SOURCE[0]}")")
+  SCRIPT_FULLPATH="$SCRIPT_DIR/$SCRIPT_NAME"
+  echo "script dir is $SCRIPT_DIR and name $SCRIPT_NAME"
+  if [ ! -w "$SCRIPT_FULLPATH" ]; then
+    error "File \"$SCRIPT_FULLPATH\" is NOT writeable"
+    error "You may need to run Self-update as root or with sudo! Aborting self-update..."
     exit 1
   fi
-  echo "Updating script to /usr/local/bin/stack"
-  curl -s -o /usr/local/bin/stack https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack
-  chmod 755 /usr/local/bin/stack
-  sed -i /usr/local/bin/stack -e "s|##DOCKER_FILES##|$DOCKER_FILES|g"
+
+  # SOURCE=${BASH_SOURCE[0]}
+  # while [ -L "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  #   DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+  #   SOURCE=$(readlink "$SOURCE")
+  #   [[ $SOURCE != /* ]] && SOURCE=$DIR/$SOURCE # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+  # done
+  # DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+
+
+  echo "Updating script to $SCRIPT_FULLPATH"
+  curl -s -o $SCRIPT_FULLPATH https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack
+  chmod 755 $SCRIPT_FULLPATH
+  sed -i $SCRIPT_FULLPATH -e "s|##DOCKER_FILES##|$DOCKER_FILES|g"
 
   if [ -d "/etc/bash_completion.d" ]; then
     echo "Updating completion file to /etc/bash_completion.d/stack.completion"
     curl -s -o /etc/bash_completion.d/stack.completion https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack.completion
     chmod 644 /etc/bash_completion.d/stack.completion 
+  else
+    warning "/etc/bash_completion.d doesn't exist. Completion won't be installed/updated."
+    echo "However, you can get the bash completion script here: https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack.completion"
   fi
 }
 

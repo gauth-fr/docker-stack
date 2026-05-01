@@ -153,6 +153,25 @@ function warning(){
   echo -e "${YELLOW}WARNING:${ENDCOLOR} $@" >&2
 }
 
+function get_env_files(){
+  local stack_dir="$1"
+  local env_args=""
+  
+  # First, add the main .env file if it exists (symlink or regular file)
+  if [ -f "$stack_dir/.env" ]; then
+    env_args="--env-file $stack_dir/.env"
+  fi
+  
+  # Then, add all other .env* files in alphabetical order (excluding the main .env)
+  for env_file in $(ls -1 "$stack_dir"/.env* 2>/dev/null | grep -v "^$stack_dir/\.env$" | sort); do
+    if [ -f "$env_file" ]; then
+      env_args="$env_args --env-file $env_file"
+    fi
+  done
+  
+  echo "$env_args"
+}
+
 function status(){
   local containers="$@"
   for c in $containers
@@ -166,9 +185,10 @@ function status(){
         status=" "
       fi
 
-      #echo "$c" 
-      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN top) ]]
-      then	
+      local env_args=$(get_env_files "$DOCKER_FILES/$c")
+      #echo "$c"
+      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args top) ]]
+      then
         running_status="${GREEN}Running${ENDCOLOR}"
       else
         running_status="${RED}Stopped${ENDCOLOR}"
@@ -176,9 +196,9 @@ function status(){
 
       echo -e "$c|$running_status|$status|" $DOCKER_FILES/$c/$COMPOSE_PATTERN
     else
-      warning "No $c app found" 
+      warning "No $c app found"
     fi
-  done | column -t -s'|' 
+  done | column -t -s'|'
 
 }
 
@@ -209,19 +229,20 @@ function start(){
   do
     if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
+      local env_args=$(get_env_files "$DOCKER_FILES/$c")
       if [ $CONTAINERS_PARAM == "all" ]
       then
         if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
         then
           echo "Starting $c ..."
-          $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN up -d
+          $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args up -d
         fi
       else
         echo "Starting $c ..."
-        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN up -d
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args up -d
       fi
     else
-      warning "No $c app found" 
+      warning "No $c app found"
     fi
   done
 }
@@ -232,10 +253,11 @@ function stop(){
   do
     if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
+      local env_args=$(get_env_files "$DOCKER_FILES/$c")
       echo "...Stopping $c ..."
-      $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN down
+      $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args down
     else
-      warning "No $c app found" 
+      warning "No $c app found"
     fi
   done
 }
@@ -246,17 +268,18 @@ function restart() {
   do
     if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
+      local env_args=$(get_env_files "$DOCKER_FILES/$c")
       echo "Restarting $c ..."
-      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN top) ]]
+      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args top) ]]
       then
-        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN down
-        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN up -d
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args down
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args up -d
       else
-        warning "$c is not running. Start it first." 
+        warning "$c is not running. Start it first."
       fi
         
     else
-      warning "No $c app found" 
+      warning "No $c app found"
     fi
     echo
   done
@@ -269,17 +292,18 @@ function update(){
   do
 	if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
 	then
+		local env_args=$(get_env_files "$DOCKER_FILES/$c")
 		echo "Updating $c ..."
-		$DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN pull
-		if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN top) ]]
-		then	
+		$DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args pull
+		if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args top) ]]
+		then
 			echo "Restarting $c ..."
-			$DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN up -d
+			$DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args up -d
       
 		fi
     echo
 	else
-		warning "No $c app found" 
+		warning "No $c app found"
 	fi
   done
 }
@@ -431,16 +455,17 @@ function pause(){
   do
     if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
-      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN top) ]]
+      local env_args=$(get_env_files "$DOCKER_FILES/$c")
+      if [[ ! -z $($DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args top) ]]
       then
         echo "Stop $c and mark for restart"
-        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN down
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args down
         touch $DOCKER_FILES/$c/.paused
       fi
     else
-      warning "No $c app found" 
+      warning "No $c app found"
     fi
-  done 
+  done
 }
 
 function unpause(){
@@ -450,15 +475,15 @@ function unpause(){
   do
     if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
-
+      local env_args=$(get_env_files "$DOCKER_FILES/$c")
       if ls $DOCKER_FILES/$c/.paused 1>/dev/null 2>&1
       then
         echo "Restarting paused stack $c ..."
-        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN up -d
+        $DOCKER_COMPOSE_BIN -f $DOCKER_FILES/$c/$COMPOSE_PATTERN $env_args up -d
         rm $DOCKER_FILES/$c/.paused
       fi
     else
-      warning "No $c app found" 
+      warning "No $c app found"
     fi
   done
 }

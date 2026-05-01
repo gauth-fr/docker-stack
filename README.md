@@ -10,7 +10,9 @@ DOCKER_APPS_ROOT_FOLDER
 |   |   `-- redis
 |   |-- docker-compose.yml
 |   |-- .enabled
-|   `-- .env -> ../.env
+|   |-- .env -> ../.env
+|   |-- .env.local          # Optional: additional env files
+|   `-- .env.secrets        # Optional: sensitive credentials
 |-- app2
 |   |-- data
 |   |   `-- config
@@ -23,6 +25,15 @@ DOCKER_APPS_ROOT_FOLDER
 
 ```
 I choose this structure as I a not fan of a huge docker-compose file, so if you don't like it... this script is not for you :)
+
+## Features
+
+- **Simple CLI interface** for managing multiple Docker Compose stacks
+- **Enable/disable stacks** for selective bulk operations
+- **Automatic updates** with image pulling and restart
+- **Pause/unpause** for consistent backups
+- **Multiple environment files** support - automatically loads all `.env*` files in each stack directory (see [MULTIPLE_ENV_FILES.md](MULTIPLE_ENV_FILES.md))
+- **Bash completion** for commands and stack names
 
 ## Installation
 ### Automatic

@@ -1,15 +1,29 @@
 #!/usr/bin/env bash
+
+# Configuration
 DOCKER_FILES=##DOCKER_FILES##
 EDITOR=${EDITOR:-vim}
 VERBOSE=0
 
-DEFAULT_DOCKERCOMPOSE_TEMPLATE_B64="dmVyc2lvbjogIjMuOCIKc2VydmljZXM6CiAgIyNDT05UQUlORVIjIzoKICAgIGNvbnRhaW5lcl9uYW1lOiAjI0NPTlRBSU5FUiMjCiAgICBpbWFnZTogdHJhZWZpay93aG9hbWkKICAgIHJlc3RhcnQ6IHVubGVzcy1zdG9wcGVkCiAgICBwb3J0czoKICAgICAgICAtIDExMDgwOjgwCiAgICB2b2x1bWVzOgogICAgICAtICRDT05GSUdGT0xERVIvIyNDT05UQUlORVIjIy9kYXRhL2NvbmZpZzovY29uZmlnCiAgICBsYWJlbHM6CiAgICAgIC0gInRyYWVmaWsuZW5hYmxlPXRydWUiCiAgICAgIC0gInRyYWVmaWsuaHR0cC5zZXJ2aWNlcy4jI0NPTlRBSU5FUiMjLXNlcnZpY2UubG9hZGJhbGFuY2VyLnNlcnZlci5wb3J0PTgwIgoKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUuZW50cnlwb2ludHM9d2Vic2VjdXJlIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS5ydWxlPUhvc3QoYCMjQ09OVEFJTkVSIyMuJERPTUFJTk5BTUVgKSIKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUubWlkZGxld2FyZXM9bG9jYWwtbmV0d29ya0BmaWxlLCBjaGFpbi1hdXRoLWF1dGhlbGlhQGZpbGUiCiAgICAgIC0gInRyYWVmaWsuaHR0cC5yb3V0ZXJzLiMjQ09OVEFJTkVSIyMtc2VjdXJlLnByaW9yaXR5PTEwIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS50bHM9dHJ1ZSIKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUudGxzLmNlcnRyZXNvbHZlcj1teXJlc29sdmVyIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS5zZXJ2aWNlPSMjQ09OVEFJTkVSIyMtc2VydmljZSIKCgpuZXR3b3JrczoKICBkZWZhdWx0OgogICAgZXh0ZXJuYWw6IHRydWUKICAgIG5hbWU6IHByb3h5Cg=="
+# Constants
+DEFAULT_DOCKERCOMPOSE_TEMPLATE_B64="c2VydmljZXM6CiAgIyNDT05UQUlORVIjIzoKICAgIGNvbnRhaW5lcl9uYW1lOiAjI0NPTlRBSU5FUiMjCiAgICBpbWFnZTogdHJhZWZpay93aG9hbWkKICAgIHJlc3RhcnQ6IHVubGVzcy1zdG9wcGVkCiAgICBwb3J0czoKICAgICAgICAtIDExMDgwOjgwCiAgICB2b2x1bWVzOgogICAgICAtICRDT05GSUdGT0xERVIvIyNDT05UQUlORVIjIy9kYXRhL2NvbmZpZzovY29uZmlnCiAgICBsYWJlbHM6CiAgICAgIC0gInRyYWVmaWsuZW5hYmxlPXRydWUiCiAgICAgIC0gInRyYWVmaWsuaHR0cC5zZXJ2aWNlcy4jI0NPTlRBSU5FUiMjLXNlcnZpY2UubG9hZGJhbGFuY2VyLnNlcnZlci5wb3J0PTgwIgoKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUuZW50cnlwb2ludHM9d2Vic2VjdXJlIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS5ydWxlPUhvc3QoYCMjQ09OVEFJTkVSIyMuJERPTUFJTk5BTUVgKSIKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUubWlkZGxld2FyZXM9bG9jYWwtbmV0d29ya0BmaWxlLCBjaGFpbi1hdXRoLWF1dGhlbGlhQGZpbGUiCiAgICAgIC0gInRyYWVmaWsuaHR0cC5yb3V0ZXJzLiMjQ09OVEFJTkVSIyMtc2VjdXJlLnByaW9yaXR5PTEwIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS50bHM9dHJ1ZSIKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUudGxzLmNlcnRyZXNvbHZlcj1teXJlc29sdmVyIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS5zZXJ2aWNlPSMjQ09OVEFJTkVSIyMtc2VydmljZSIKCgpuZXR3b3JrczoKICBkZWZhdWx0OgogICAgZXh0ZXJuYWw6IHRydWUKICAgIG5hbWU6IHByb3h5Cg=="
 DEFAULT_ENV_TEMPLATE_B64="IyNBREQvQ0hBTkdFL0VESVQgUkVRVUlSRUQgVkFSSUFCTEVTCgpQVUlEPTEyMzQKUEdJRD0xMjM0ClRaPUV1cm9wZS9QYXJpcwoKQ09ORklHRk9MREVSPSMjQ09ORklHX0ZPTERFUiMjCgpET01BSU5OQU1FPW15ZG9tYWluLmNvbQ=="
 DOCKER_COMPOSE_BIN=""
 CONTAINERS_PARAM=""
 
+# File patterns and markers
 COMPOSE_PATTERN='*compose.y*ml'
+ENABLED_MARKER='.enabled'
+PAUSED_MARKER='.paused'
 
+# Exit codes
+EXIT_SUCCESS=0
+EXIT_GENERAL_ERROR=1
+EXIT_DOCKER_PERMISSION=10
+EXIT_NO_COMPOSE_TOOL=11
+EXIT_INVALID_INPUT=255
+
+# Colors
 RED="\033[31m"
 GREEN="\033[32m"
 YELLOW="\033[33m"
@@ -19,11 +33,19 @@ ENDCOLOR="\033[0m"
 
 
 function main() {
-  if [ -z "$DOCKER_FILES" ]
-  then
-    echo "Env Variable DOCKER_FILES doesn't exists or is not exported!"
-    exit 1
+  # Validate DOCKER_FILES environment variable
+  if [ -z "$DOCKER_FILES" ]; then
+    error "Environment variable DOCKER_FILES is not set or exported!"
+    exit $EXIT_GENERAL_ERROR
   fi
+
+  # Validate DOCKER_FILES path exists and is a directory
+  if [ ! -d "$DOCKER_FILES" ]; then
+    error "DOCKER_FILES path does not exist or is not a directory: $DOCKER_FILES"
+    exit $EXIT_GENERAL_ERROR
+  fi
+
+  debug "Using DOCKER_FILES: $DOCKER_FILES"
 
   # Parse verbose flag first
   while [[ "$1" == -* ]]; do
@@ -104,9 +126,9 @@ function main() {
       exit 0
       ;;
     *) # unknown flag/switch
-      echo "Invalid parameter: ${1}"
+      error "Invalid parameter: ${1}"
       usage
-      exit 255
+      exit $EXIT_INVALID_INPUT
       ;;
   esac
 
@@ -115,6 +137,16 @@ function main() {
   docker-privileges-check ${ACTION}
 
   CONTAINERS_PARAM=$1
+  
+  # For actions that require specific container names, validate before container discovery
+  case "$ACTION" in
+    create|remove|edit)
+      if [[ "$CONTAINERS_PARAM" == "all" || -z "$CONTAINERS_PARAM" ]]; then
+        error "Action '$ACTION' requires a specific container name (cannot use 'all' or empty)."
+        exit $EXIT_INVALID_INPUT
+      fi
+      ;;
+  esac
 
   if [ -z "$CONTAINERS_PARAM" ] || [ "$CONTAINERS_PARAM" == "all" ]
   then
@@ -218,7 +250,13 @@ function docker_compose_exec(){
   
   debug "Executing: $DOCKER_COMPOSE_BIN -f $compose_file $env_args $compose_args"
   $DOCKER_COMPOSE_BIN -f $compose_file $env_args $compose_args
-  return $?
+  local exit_code=$?
+  
+  if [ $exit_code -ne 0 ]; then
+    debug "Docker compose command failed with exit code: $exit_code"
+  fi
+  
+  return $exit_code
 }
 
 function status(){
@@ -227,7 +265,7 @@ function status(){
   do
     if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
-      if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
+      if ls $DOCKER_FILES/$c/$ENABLED_MARKER 1>/dev/null 2>&1
       then
         status=enabled
       else
@@ -257,7 +295,7 @@ function list(){
   do
     if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
-      if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
+      if ls $DOCKER_FILES/$c/$ENABLED_MARKER 1>/dev/null 2>&1
       then
         status=enabled
       else
@@ -281,7 +319,7 @@ function start(){
       local env_args=$(get_env_files "$DOCKER_FILES/$c")
       if [ "$CONTAINERS_PARAM" == "all" ]
       then
-        if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
+        if ls $DOCKER_FILES/$c/$ENABLED_MARKER 1>/dev/null 2>&1
         then
           echo "Starting $c ..."
           docker_compose_exec "$DOCKER_FILES/$c/$COMPOSE_PATTERN" "$env_args" "up -d"
@@ -363,10 +401,10 @@ function enable(){
   do
     if ls $DOCKER_FILES/$c 1>/dev/null 2>&1
     then
-      if ! ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
+      if ! ls $DOCKER_FILES/$c/$ENABLED_MARKER 1>/dev/null 2>&1
       then
-        debug "Creating enabled marker: $DOCKER_FILES/$c/.enabled"
-        touch $DOCKER_FILES/$c/.enabled
+        debug "Creating enabled marker: $DOCKER_FILES/$c/$ENABLED_MARKER"
+        touch $DOCKER_FILES/$c/$ENABLED_MARKER
         echo "$c app is enabled"
       else
         warning "$c app is already enabled"
@@ -383,10 +421,10 @@ function disable(){
   do
     if ls $DOCKER_FILES/$c 1>/dev/null 2>&1
     then
-      if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
+      if ls $DOCKER_FILES/$c/$ENABLED_MARKER 1>/dev/null 2>&1
       then
-        debug "Removing enabled marker: $DOCKER_FILES/$c/.enabled"
-        rm $DOCKER_FILES/$c/.enabled
+        debug "Removing enabled marker: $DOCKER_FILES/$c/$ENABLED_MARKER"
+        rm $DOCKER_FILES/$c/$ENABLED_MARKER
         echo "$c app is now disabled"
       else
         warning "$c app is already disabled"
@@ -397,15 +435,18 @@ function disable(){
   done
 }
 
-function create(){
-  continue=0
+# Initialize template and .env files if they don't exist
+# Returns 0 if files exist or were created successfully, 1 if creation failed
+function ensure_templates_exist(){
+  local needs_init=0
+  
   if [ ! -f "$DOCKER_FILES/docker-compose.yaml.template" ]; then
     warning "docker-compose.yaml template doesn't exist. Generating a default one."
     debug "Generating template from base64 encoded default"
     echo $DEFAULT_DOCKERCOMPOSE_TEMPLATE_B64 | base64 -d >> "$DOCKER_FILES/docker-compose.yaml.template"
     chmod 640 "$DOCKER_FILES/docker-compose.yaml.template"
     echo "You can now edit it with 'stack edit template'"
-    
+    needs_init=1
   fi
 
   if [ ! -f "$DOCKER_FILES/.env" ]; then
@@ -415,18 +456,44 @@ function create(){
     sed -i.bak -e "s|##CONFIG_FOLDER##|$DOCKER_FILES|g" "$DOCKER_FILES/.env" && rm -f "$DOCKER_FILES/.env.bak"
     chmod 640 "$DOCKER_FILES/.env"
     echo "You can now edit it with 'stack edit .env'"
-    ((continue++))
+    needs_init=1
   fi
+  
+  return $needs_init
+}
 
-  if (( $continue > 0 )); then
-    error "Aborting Creation"
-    exit 1
+# Validate container name (no special characters that could cause issues)
+function validate_container_name(){
+  local name="$1"
+  
+  # Check for empty name
+  if [ -z "$name" ]; then
+    error "Container name cannot be empty"
+    return 1
   fi
+  
+  # Check for 'all' keyword
+  if [ "$name" = "all" ]; then
+    error "Container name cannot be 'all' (reserved keyword)"
+    return 1
+  fi
+  
+  # Check for invalid characters (allow alphanumeric, dash, underscore, dot)
+  if [[ ! "$name" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+    error "Invalid container name: '$name'. Only alphanumeric characters, dash, underscore, and dot are allowed."
+    return 1
+  fi
+  
+  return 0
+}
 
-  if [[ $CONTAINERS_PARAM == "all" || -z $CONTAINERS_PARAM ]]
-  then
-    error "${RED}ABORTING!${ENDCOLOR} You need to specify a name (different from 'all') for the new stack"
-    exit 1
+function create(){
+  # Ensure templates exist before creating a new stack
+  ensure_templates_exist
+
+  # Validate container name
+  if ! validate_container_name "$1"; then
+    exit $EXIT_INVALID_INPUT
   fi
   
   debug "Creating new stack: $1"
@@ -448,12 +515,6 @@ function create(){
 }
 
 function remove(){
-  if [[ $CONTAINERS_PARAM == "all" || -z $CONTAINERS_PARAM ]]
-  then
-    error "${RED}ABORTING!${ENDCOLOR} Won't delete everything!"
-    exit 1
-  fi
-
   local containers="$@"
   for c in $containers
   do
@@ -487,12 +548,6 @@ function remove(){
 }
 
 function edit(){
-  if [[ $CONTAINERS_PARAM == "all" || -z $CONTAINERS_PARAM ]]
-  then
-    error "${RED}ABORTING!${ENDCOLOR} Won't edit (every|no)thing!"
-    exit 1
-  fi
-
   if [[ "${1}" == "template" ]]; then
     $EDITOR $DOCKER_FILES/docker-compose.yaml.template
   elif [[ "${1}" == ".env" ]]; then
@@ -518,8 +573,8 @@ function pause(){
       then
         echo "Stop $c and mark for restart"
         docker_compose_exec "$DOCKER_FILES/$c/$COMPOSE_PATTERN" "$env_args" "down"
-        debug "Creating pause marker: $DOCKER_FILES/$c/.paused"
-        touch $DOCKER_FILES/$c/.paused
+        debug "Creating pause marker: $DOCKER_FILES/$c/$PAUSED_MARKER"
+        touch $DOCKER_FILES/$c/$PAUSED_MARKER
       fi
     else
       warning "No $c app found"
@@ -535,12 +590,12 @@ function unpause(){
     if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
       local env_args=$(get_env_files "$DOCKER_FILES/$c")
-      if ls $DOCKER_FILES/$c/.paused 1>/dev/null 2>&1
+      if ls $DOCKER_FILES/$c/$PAUSED_MARKER 1>/dev/null 2>&1
       then
         echo "Restarting paused stack $c ..."
         docker_compose_exec "$DOCKER_FILES/$c/$COMPOSE_PATTERN" "$env_args" "up -d"
-        debug "Removing pause marker: $DOCKER_FILES/$c/.paused"
-        rm $DOCKER_FILES/$c/.paused
+        debug "Removing pause marker: $DOCKER_FILES/$c/$PAUSED_MARKER"
+        rm $DOCKER_FILES/$c/$PAUSED_MARKER
       fi
     else
       warning "No $c app found"
@@ -549,22 +604,8 @@ function unpause(){
 }
 
 function init(){
-  if [ ! -f "$DOCKER_FILES/docker-compose.yaml.template" ]; then
-    warning "docker-compose.yaml template doesn't exist. Generating a default one."
-    echo $DEFAULT_DOCKERCOMPOSE_TEMPLATE_B64 | base64 -d >> "$DOCKER_FILES/docker-compose.yaml.template"
-    chmod 640 "$DOCKER_FILES/docker-compose.yaml.template"
-    echo "You can now edit it with 'stack edit template'"
-    
-  fi
-
-  if [ ! -f "$DOCKER_FILES/.env" ]; then
-    warning ".env doesn't exist. Generating a default one."
-    echo $DEFAULT_ENV_TEMPLATE_B64 | base64 -d >> "$DOCKER_FILES/.env"
-    sed -i.bak -e "s|##CONFIG_FOLDER##|$DOCKER_FILES|g" "$DOCKER_FILES/.env" && rm -f "$DOCKER_FILES/.env.bak"
-    chmod 640 "$DOCKER_FILES/.env"
-    echo "You can now edit it with 'stack edit .env'"
-    ((continue++))  
-  fi
+  ensure_templates_exist
+  echo "Initialization complete."
 }
 
 function set-docker-compose-bin(){
@@ -588,7 +629,7 @@ function set-docker-compose-bin(){
     debug "Detected: podman-compose (standalone)"
   else
     error "No container runtime with compose support found (tried: docker compose, docker-compose, podman compose, podman-compose). Aborting."
-    exit 11
+    exit $EXIT_NO_COMPOSE_TOOL
   fi
 }
 
@@ -601,7 +642,7 @@ function docker-privileges-check(){
     if (( $RC != 0 )); then
       error "Cannot execute '$DOCKER_COMPOSE_BIN'. Check permissions or installation. Aborting."
       debug "You may need to: run with sudo, add user to docker/podman group, or check if the runtime is properly installed."
-      exit 10
+      exit $EXIT_DOCKER_PERMISSION
     fi
     debug "Privileges check passed"
   fi
@@ -623,7 +664,7 @@ function self-update(){
   if [ ! -w "$SCRIPT_FULLPATH" ]; then
     error "File \"$SCRIPT_FULLPATH\" is NOT writeable"
     error "You may need to run Self-update as root or with sudo! Aborting self-update..."
-    exit 1
+    exit $EXIT_GENERAL_ERROR
   fi
 
   # SOURCE=${BASH_SOURCE[0]}

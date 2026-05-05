@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 DOCKER_FILES=##DOCKER_FILES##
-EDITOR=vim
+EDITOR=${EDITOR:-vim}
 VERBOSE=0
 
 DEFAULT_DOCKERCOMPOSE_TEMPLATE_B64="dmVyc2lvbjogIjMuOCIKc2VydmljZXM6CiAgIyNDT05UQUlORVIjIzoKICAgIGNvbnRhaW5lcl9uYW1lOiAjI0NPTlRBSU5FUiMjCiAgICBpbWFnZTogdHJhZWZpay93aG9hbWkKICAgIHJlc3RhcnQ6IHVubGVzcy1zdG9wcGVkCiAgICBwb3J0czoKICAgICAgICAtIDExMDgwOjgwCiAgICB2b2x1bWVzOgogICAgICAtICRDT05GSUdGT0xERVIvIyNDT05UQUlORVIjIy9kYXRhL2NvbmZpZzovY29uZmlnCiAgICBsYWJlbHM6CiAgICAgIC0gInRyYWVmaWsuZW5hYmxlPXRydWUiCiAgICAgIC0gInRyYWVmaWsuaHR0cC5zZXJ2aWNlcy4jI0NPTlRBSU5FUiMjLXNlcnZpY2UubG9hZGJhbGFuY2VyLnNlcnZlci5wb3J0PTgwIgoKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUuZW50cnlwb2ludHM9d2Vic2VjdXJlIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS5ydWxlPUhvc3QoYCMjQ09OVEFJTkVSIyMuJERPTUFJTk5BTUVgKSIKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUubWlkZGxld2FyZXM9bG9jYWwtbmV0d29ya0BmaWxlLCBjaGFpbi1hdXRoLWF1dGhlbGlhQGZpbGUiCiAgICAgIC0gInRyYWVmaWsuaHR0cC5yb3V0ZXJzLiMjQ09OVEFJTkVSIyMtc2VjdXJlLnByaW9yaXR5PTEwIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS50bHM9dHJ1ZSIKICAgICAgLSAidHJhZWZpay5odHRwLnJvdXRlcnMuIyNDT05UQUlORVIjIy1zZWN1cmUudGxzLmNlcnRyZXNvbHZlcj1teXJlc29sdmVyIgogICAgICAtICJ0cmFlZmlrLmh0dHAucm91dGVycy4jI0NPTlRBSU5FUiMjLXNlY3VyZS5zZXJ2aWNlPSMjQ09OVEFJTkVSIyMtc2VydmljZSIKCgpuZXR3b3JrczoKICBkZWZhdWx0OgogICAgZXh0ZXJuYWw6IHRydWUKICAgIG5hbWU6IHByb3h5Cg=="
@@ -116,7 +116,7 @@ function main() {
 
   CONTAINERS_PARAM=$1
 
-  if [ -z $CONTAINERS_PARAM ] || [ "$CONTAINERS_PARAM" == "all" ]
+  if [ -z "$CONTAINERS_PARAM" ] || [ "$CONTAINERS_PARAM" == "all" ]
   then
       debug "Discovering containers in: $DOCKER_FILES"
       #CONTAINERS=$(echo $DOCKERCOMPOSE_DIR/*/*.docker-compose.yml | sed -e "s|$DOCKERCOMPOSE_DIR/[^/]*/||g" -e "s|.docker-compose.yml||g")
@@ -279,7 +279,7 @@ function start(){
     if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
     then
       local env_args=$(get_env_files "$DOCKER_FILES/$c")
-      if [ $CONTAINERS_PARAM == "all" ]
+      if [ "$CONTAINERS_PARAM" == "all" ]
       then
         if ls $DOCKER_FILES/$c/.enabled 1>/dev/null 2>&1
         then
@@ -412,7 +412,7 @@ function create(){
     warning ".env doesn't exist. Generating a default one."
     debug "Generating .env from base64 encoded default"
     echo $DEFAULT_ENV_TEMPLATE_B64 | base64 -d >> "$DOCKER_FILES/.env"
-    sed -i $DOCKER_FILES/.env -e "s|##CONFIG_FOLDER##|$DOCKER_FILES|g"
+    sed -i.bak -e "s|##CONFIG_FOLDER##|$DOCKER_FILES|g" "$DOCKER_FILES/.env" && rm -f "$DOCKER_FILES/.env.bak"
     chmod 640 "$DOCKER_FILES/.env"
     echo "You can now edit it with 'stack edit .env'"
     ((continue++))
@@ -439,7 +439,7 @@ function create(){
     ln -s ../.env $DOCKER_FILES/$1/.env
     debug "Copying template and replacing ##CONTAINER## with $1"
     cp $DOCKER_FILES/docker-compose.yaml.template $DOCKER_FILES/$1/docker-compose.yaml
-    sed -i $DOCKER_FILES/$1/docker-compose.yaml -e "s/##CONTAINER##/$1/g"
+    sed -i.bak -e "s/##CONTAINER##/$1/g" "$DOCKER_FILES/$1/docker-compose.yaml" && rm -f "$DOCKER_FILES/$1/docker-compose.yaml.bak"
     echo File structure for $1 created in $DOCKER_FILES/$1
   else
     warning "$1 app already exists"
@@ -560,7 +560,7 @@ function init(){
   if [ ! -f "$DOCKER_FILES/.env" ]; then
     warning ".env doesn't exist. Generating a default one."
     echo $DEFAULT_ENV_TEMPLATE_B64 | base64 -d >> "$DOCKER_FILES/.env"
-    sed -i $DOCKER_FILES/.env -e "s|##CONFIG_FOLDER##|$DOCKER_FILES|g"
+    sed -i.bak -e "s|##CONFIG_FOLDER##|$DOCKER_FILES|g" "$DOCKER_FILES/.env" && rm -f "$DOCKER_FILES/.env.bak"
     chmod 640 "$DOCKER_FILES/.env"
     echo "You can now edit it with 'stack edit .env'"
     ((continue++))  
@@ -609,8 +609,15 @@ function docker-privileges-check(){
 
 function self-update(){
   
-  SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
-  SCRIPT_NAME=$(basename "$(readlink -f "${BASH_SOURCE[0]}")")
+  # Cross-platform way to resolve script path (works on macOS and Linux)
+  SOURCE="${BASH_SOURCE[0]}"
+  while [ -L "$SOURCE" ]; do
+    DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+  done
+  SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SCRIPT_NAME="$(basename "$SOURCE")"
   SCRIPT_FULLPATH="$SCRIPT_DIR/$SCRIPT_NAME"
   echo "script dir is $SCRIPT_DIR and name $SCRIPT_NAME"
   if [ ! -w "$SCRIPT_FULLPATH" ]; then
@@ -631,7 +638,7 @@ function self-update(){
   echo "Updating script to $SCRIPT_FULLPATH"
   curl -s -o $SCRIPT_FULLPATH https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack
   chmod 755 $SCRIPT_FULLPATH
-  sed -i $SCRIPT_FULLPATH -e "s|##DOCKER_FILES##|$DOCKER_FILES|g"
+  sed -i.bak -e "s|##DOCKER_FILES##|$DOCKER_FILES|g" "$SCRIPT_FULLPATH" && rm -f "$SCRIPT_FULLPATH.bak"
 
   if [ -d "/etc/bash_completion.d" ]; then
     echo "Updating completion file to /etc/bash_completion.d/stack.completion"

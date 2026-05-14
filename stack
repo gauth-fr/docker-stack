@@ -28,6 +28,9 @@ RED="\033[31m"
 GREEN="\033[32m"
 YELLOW="\033[33m"
 BLUE="\033[34m"
+NOCOLOR="\033[37m"  # Default/white color for consistency
+BOLD="\033[01m"
+NOBOLD="\033[22m"
 ENDCOLOR="\033[0m"
 
 
@@ -261,52 +264,195 @@ function docker_compose_exec(){
 
 function status(){
   local containers="$@"
-  for c in $containers
-  do
-    if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
-    then
-      if ls $DOCKER_FILES/$c/$ENABLED_MARKER 1>/dev/null 2>&1
+  
+  {
+    # Print header with bold blue - each cell must have same ANSI structure
+    echo -e "${BOLD}${BLUE}NAME${ENDCOLOR}	${BOLD}${BLUE}STATUS${ENDCOLOR}	${BOLD}${BLUE}RUNNING${ENDCOLOR}	${BOLD}${BLUE}PORTS${ENDCOLOR}	${BOLD}${BLUE}PATH${ENDCOLOR}"
+    
+    for c in $containers
+    do
+      if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
       then
-        status=enabled
-      else
-        status=" "
-      fi
+        local compose_file=$(ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 2>/dev/null | head -1)
+        
+        # Get enabled status - both with same ANSI structure for column alignment
+        local status_text
+        if ls $DOCKER_FILES/$c/$ENABLED_MARKER 1>/dev/null 2>&1
+        then
+          status_text="${NOBOLD}${GREEN}enabled${ENDCOLOR}"
+        else
+          status_text="${NOBOLD}${NOCOLOR}-${ENDCOLOR}"
+        fi
 
-      local env_args=$(get_env_files "$DOCKER_FILES/$c")
-      #echo "$c"
-      if [[ ! -z $(docker_compose_exec "$DOCKER_FILES/$c/$COMPOSE_PATTERN" "$env_args" "top") ]]
-      then
-        running_status="${GREEN}Running${ENDCOLOR}"
-      else
-        running_status="${RED}Stopped${ENDCOLOR}"
-      fi
+        local env_args=$(get_env_files "$DOCKER_FILES/$c")
+        
+        # Get running status
+        local running_status
+        if [[ ! -z $(docker_compose_exec "$compose_file" "$env_args" "top") ]]
+        then
+          running_status="${NOBOLD}${GREEN}Running${ENDCOLOR}"
+        else
+          running_status="${NOBOLD}${RED}Stopped${ENDCOLOR}"
+        fi
 
-      echo -e "$c|$running_status|$status|" $DOCKER_FILES/$c/$COMPOSE_PATTERN
-    else
-      warning "No $c app found"
-    fi
-  done | column -t -s'|'
+        # Extract port mappings using same AWK script as list command
+        local ports=$(awk '
+          BEGIN { out = "" }
+          
+          # Syntaxe inline : ports: ["8080:80", "443:443"]
+          /^[[:space:]]*ports:[[:space:]]*\[/ {
+            # Extraire tout ce qui est entre les crochets
+            match($0, /\[.*\]/)
+            inline = substr($0, RSTART+1, RLENGTH-2)
+            # Splitter sur la virgule
+            n = split(inline, arr, /,[[:space:]]*/)
+            for (i=1; i<=n; i++) {
+              gsub(/[[:space:]"'"'"']/, "", arr[i])
+              if (arr[i] != "") {
+                if (out != "") out = out ", "
+                out = out arr[i]
+              }
+            }
+            print out
+            out = ""  # Reset after printing to avoid duplicate in END block
+            flag=0
+            next
+          }
+
+          # Syntaxe liste : ports: (seul sur la ligne)
+          /^[[:space:]]*ports:[[:space:]]*$/ { flag=1; next }
+
+          # Toute autre clé YAML → fin du bloc ports
+          /^[[:space:]]*[a-z_]+:/ { flag=0 }
+
+          # Lignes du bloc ports (syntaxe liste)
+          flag && /^[[:space:]]*-/ {
+            gsub(/^[[:space:]]*-[[:space:]]*/, "")  # retirer "  - "
+            gsub(/['"'"'"[:space:]]/, "")           # retirer quotes et espaces
+            if ($0 != "") {
+              if (out != "") out = out ", "
+              out = out $0
+            }
+          }
+          
+          END {
+            if (out != "") print out
+          }
+        ' "$compose_file" 2>/dev/null)
+        
+        # Check for long format (target:/published:) which we can't parse simply
+        if [ -z "$ports" ] || echo "$ports" | grep -q 'target:'; then
+          if echo "$ports" | grep -q 'target:'; then
+            ports="(complex)"
+          else
+            ports="-"
+          fi
+        fi
+
+        # All cells must have same ANSI structure: ${NOBOLD}${COLOR}text${ENDCOLOR}
+        echo -e "${NOBOLD}${NOCOLOR}$c${ENDCOLOR}	$status_text	$running_status	${NOBOLD}${NOCOLOR}$ports${ENDCOLOR}	${NOBOLD}${NOCOLOR}$compose_file${ENDCOLOR}"
+      else
+        warning "No $c app found"
+      fi
+    done
+  } | column -t -s$'\t'
 
 }
 
 function list(){
   local containers="$@"
-  for c in $containers
-  do
-    if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
-    then
-      if ls $DOCKER_FILES/$c/$ENABLED_MARKER 1>/dev/null 2>&1
+  
+  {
+    # Print header with bold blue - each cell must have same ANSI structure
+    echo -e "${BOLD}${BLUE}NAME${ENDCOLOR}	${BOLD}${BLUE}STATUS${ENDCOLOR}	${BOLD}${BLUE}PORTS${ENDCOLOR}	${BOLD}${BLUE}MODIFIED${ENDCOLOR}	${BOLD}${BLUE}PATH${ENDCOLOR}"
+    
+    for c in $containers
+    do
+      if ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 1>/dev/null 2>&1
       then
-        status=enabled
-      else
-        status=" "
+        local compose_file=$(ls $DOCKER_FILES/$c/$COMPOSE_PATTERN 2>/dev/null | head -1)
+        
+        # Get enabled status - both with same ANSI structure for column alignment
+        local status_text
+        if ls $DOCKER_FILES/$c/$ENABLED_MARKER 1>/dev/null 2>&1
+        then
+          status_text="${NOBOLD}${GREEN}enabled${ENDCOLOR}"
+        else
+          status_text="${NOBOLD}${NOCOLOR}-${ENDCOLOR}"
+        fi
+      
+      # Extract port mappings from docker-compose file
+      # Handles: inline arrays, list format, single/double quotes, various port syntaxes
+      local ports=$(awk '
+        BEGIN { out = "" }
+        
+        # Syntaxe inline : ports: ["8080:80", "443:443"]
+        /^[[:space:]]*ports:[[:space:]]*\[/ {
+          # Extraire tout ce qui est entre les crochets
+          match($0, /\[.*\]/)
+          inline = substr($0, RSTART+1, RLENGTH-2)
+          # Splitter sur la virgule
+          n = split(inline, arr, /,[[:space:]]*/)
+          for (i=1; i<=n; i++) {
+            gsub(/[[:space:]"'"'"']/, "", arr[i])
+            if (arr[i] != "") {
+              if (out != "") out = out ", "
+              out = out arr[i]
+            }
+          }
+          print out
+          out = ""  # Reset after printing to avoid duplicate in END block
+          flag=0
+          next
+        }
+
+        # Syntaxe liste : ports: (seul sur la ligne)
+        /^[[:space:]]*ports:[[:space:]]*$/ { flag=1; next }
+
+        # Toute autre clé YAML → fin du bloc ports
+        /^[[:space:]]*[a-z_]+:/ { flag=0 }
+
+        # Lignes du bloc ports (syntaxe liste)
+        flag && /^[[:space:]]*-/ {
+          gsub(/^[[:space:]]*-[[:space:]]*/, "")  # retirer "  - "
+          gsub(/['"'"'"[:space:]]/, "")           # retirer quotes et espaces
+          if ($0 != "") {
+            if (out != "") out = out ", "
+            out = out $0
+          }
+        }
+        
+        END {
+          if (out != "") print out
+        }
+      ' "$compose_file" 2>/dev/null)
+      
+      # Check for long format (target:/published:) which we can't parse simply
+      if [ -z "$ports" ] || echo "$ports" | grep -q 'target:'; then
+        if echo "$ports" | grep -q 'target:'; then
+          ports="(complex)"
+        else
+          ports="-"
+        fi
+      fi
+      
+      # Get last modification time (cross-platform compatible)
+      local modified=""
+      local file_epoch=$(stat -c %Y "$compose_file" 2>/dev/null || stat -f %m "$compose_file" 2>/dev/null)
+      if [ -n "$file_epoch" ]; then
+        modified=$(date -d "@$file_epoch" "+%Y-%m-%d %H:%M" 2>/dev/null || date -r "$file_epoch" "+%Y-%m-%d %H:%M" 2>/dev/null)
+      fi
+      if [ -z "$modified" ]; then
+        modified="-"
       fi
 
-      echo -e "$c|$status|" $DOCKER_FILES/$c/$COMPOSE_PATTERN
+      # All cells must have same ANSI structure: ${NOBOLD}${COLOR}text${ENDCOLOR}
+      echo -e "${NOBOLD}${NOCOLOR}$c${ENDCOLOR}	$status_text	${NOBOLD}${NOCOLOR}$ports${ENDCOLOR}	${NOBOLD}${NOCOLOR}$modified${ENDCOLOR}	${NOBOLD}${NOCOLOR}$compose_file${ENDCOLOR}"
     else
-      warning "No $c app found" 
+      warning "No $c app found"
     fi
-  done | column -t -s'|' 
+    done
+  } | column -t -s$'\t'
 
 }
 

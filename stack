@@ -806,34 +806,67 @@ function self-update(){
   SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
   SCRIPT_NAME="$(basename "$SOURCE")"
   SCRIPT_FULLPATH="$SCRIPT_DIR/$SCRIPT_NAME"
-  echo "script dir is $SCRIPT_DIR and name $SCRIPT_NAME"
+  
+  debug "Script location: $SCRIPT_FULLPATH"
+  
   if [ ! -w "$SCRIPT_FULLPATH" ]; then
     error "File \"$SCRIPT_FULLPATH\" is NOT writeable"
-    error "You may need to run Self-update as root or with sudo! Aborting self-update..."
+    error "You may need to run self-update as root or with sudo!"
     exit $EXIT_GENERAL_ERROR
   fi
 
-  # SOURCE=${BASH_SOURCE[0]}
-  # while [ -L "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
-  #   DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
-  #   SOURCE=$(readlink "$SOURCE")
-  #   [[ $SOURCE != /* ]] && SOURCE=$DIR/$SOURCE # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
-  # done
-  # DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
-
-
-  echo "Updating script to $SCRIPT_FULLPATH"
-  curl -s -o $SCRIPT_FULLPATH https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack
-  chmod 755 $SCRIPT_FULLPATH
+  # Download to temp file first
+  local TEMP_FILE=$(mktemp)
+  debug "Downloading to temporary file: $TEMP_FILE"
+  
+  echo "Downloading latest version from GitHub..."
+  if ! curl -f -s -o "$TEMP_FILE" https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack; then
+    error "Failed to download update from GitHub"
+    rm -f "$TEMP_FILE"
+    exit $EXIT_GENERAL_ERROR
+  fi
+  
+  # Verify it's a valid bash script
+  if ! head -1 "$TEMP_FILE" | grep -q "^#!/.*bash"; then
+    error "Downloaded file doesn't appear to be a valid bash script"
+    rm -f "$TEMP_FILE"
+    exit $EXIT_GENERAL_ERROR
+  fi
+  
+  # Create backup
+  local BACKUP_FILE="${SCRIPT_FULLPATH}.backup"
+  debug "Creating backup: $BACKUP_FILE"
+  cp "$SCRIPT_FULLPATH" "$BACKUP_FILE"
+  
+  # Replace script
+  echo "Installing update to $SCRIPT_FULLPATH"
+  mv "$TEMP_FILE" "$SCRIPT_FULLPATH"
+  chmod 755 "$SCRIPT_FULLPATH"
+  
+  # Configure DOCKER_FILES
   sed -i.bak -e "s|##DOCKER_FILES##|$DOCKER_FILES|g" "$SCRIPT_FULLPATH" && rm -f "$SCRIPT_FULLPATH.bak"
+  
+  echo "✓ Script updated successfully"
+  echo "  Backup saved to: $BACKUP_FILE"
 
+  # Update completion file
   if [ -d "/etc/bash_completion.d" ]; then
-    echo "Updating completion file to /etc/bash_completion.d/stack.completion"
-    curl -s -o /etc/bash_completion.d/stack.completion https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack.completion
-    chmod 644 /etc/bash_completion.d/stack.completion 
+    if [ -w "/etc/bash_completion.d" ]; then
+      echo "Updating completion file..."
+      local TEMP_COMPLETION=$(mktemp)
+      if curl -f -s -o "$TEMP_COMPLETION" https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack.completion; then
+        mv "$TEMP_COMPLETION" /etc/bash_completion.d/stack.completion
+        chmod 644 /etc/bash_completion.d/stack.completion
+        echo "✓ Completion file updated"
+      else
+        warning "Failed to update completion file"
+        rm -f "$TEMP_COMPLETION"
+      fi
+    else
+      warning "Cannot write to /etc/bash_completion.d (need sudo for completion update)"
+    fi
   else
-    warning "/etc/bash_completion.d doesn't exist. Completion won't be installed/updated."
-    echo "However, you can get the bash completion script here: https://raw.githubusercontent.com/gauth-fr/docker-stack/main/stack.completion"
+    debug "/etc/bash_completion.d doesn't exist, skipping completion update"
   fi
 }
 
